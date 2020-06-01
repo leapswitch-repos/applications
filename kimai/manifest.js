@@ -1,0 +1,73 @@
+jpsType: install
+jpsVersion: '1.0'
+id: kimai
+name: Kimai Time Tracking Tool
+homepage: https://www.kimai.org/
+logo: https://www.kimai.org/assets/icon/apple-touch-icon.png
+categories:
+ - apps/dev-and-admin-tools
+globals:
+  PASSWD: ${fn.password(16)}
+  MYSQLPASSWD: ${nodes.sqldb.master.password}
+  MYSQLUSER: ${nodes.sqldb.master.user}
+nodes:
+ - cloudlets: 16
+   nodeType: nginxphp
+   tag: 1.16.1-php-7.4.6
+   nodeGroup: cp
+ - cloudlets: 8
+   nodeType: mariadb10
+   tag: 10.4.13
+onInstall:
+  - deploy:
+      name: Kimai-latest
+      context: ROOT
+      archive: https://github.com/kevinpapst/kimai2/archive/master.zip
+      nodeGroup: cp
+      nodeType: nginxphp
+  - replaceInFile:
+    - path: /var/www/webroot/ROOT/.env.dist
+      nodeGroup: cp
+      nodeType: nginxphp
+      replacements:
+      - replacement: "#DATABASE_URL=sqlite:///%kernel.project_dir%/var/data/kimai.sqlite\n"
+        pattern: "DATABASE_URL=sqlite:///%kernel.project_dir%/var/data/kimai.sqlite"
+      - replacement: "DATABASE_URL=mysql://root:${nodes.sqldb.master.password}@${nodes.sqldb.master.intIP}:3306/kimai"
+        pattern: "# DATABASE_URL=mysql://db_user:db_password@127.0.0.1:3306/db_name"
+      - replacement: "APP_SECRET=${fn.password(36)}\n"
+        pattern: "APP_SECRET=change_this_to_something_unique"
+    - path: /etc/nginx/nginx.conf
+      nodeGroup: cp
+      nodeType: nginxphp
+      replacements:
+      - replacement: "root /var/www/webroot/ROOT/public;\ntry_files $uri /index.php$is_args$args;"
+        pattern: "root   /var/www/webroot/ROOT;"
+  - appendFile:
+    - path: /etc/php.ini
+      nodeType: nginxphp
+      body: "extension=gd.so\nextension=intl.so\nextension=xsl.so\n"
+  - prepareSqlDatabase:
+    - nodeType: mariadb10
+      loginCredentials:
+        user: root
+        password: ${nodes.sqldb.master.password}
+      newDatabaseName: kimai
+  - cmd[cp]:
+      curl -sS https://getcomposer.org/installer -o /tmp/composer-setup.php;
+      php /tmp/composer-setup.php --install-dir=/usr/local/bin --filename=composer;
+      cd /var/www/webroot/ROOT;
+      mv /var/www/webroot/ROOT/.env.dist /var/www/webroot/ROOT/.env;
+      composer install --no-dev --optimize-autoloader --working-dir=/var/www/webroot/ROOT;
+      /var/www/webroot/ROOT/bin/console kimai:install -n;
+      chmod -R g+r .;
+      chmod -R g+rw /var/www/webroot/ROOT/var/;
+      chmod -R g+rw /var/www/webroot/ROOT/public/avatars/;
+      /var/www/webroot/ROOT/bin/console kimai:create-user admin admin@example.com ROLE_SUPER_ADMIN ${globals.PASSWD}
+  - restartNode:
+      nodeType: nginxphp
+success: |
+    Below you will find your admin panel link, username and password
+
+    Admin Panel URL: [${env.protocol}://${env.domain}/en/login](${env.protocol}://${env.domain}/en/login)
+    Admin name: admin
+    Password: ${globals.PASSWD}
