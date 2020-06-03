@@ -6,6 +6,7 @@ homepage: https://www.kimai.org/
 logo: https://www.kimai.org/assets/icon/apple-touch-icon.png
 categories:
  - apps/dev-and-admin-tools
+ssl: true
 globals:
   PASSWD: ${fn.password(16)}
   MYSQLPASSWD: ${nodes.sqldb.master.password}
@@ -66,8 +67,7 @@ onInstall:
   - restartNode:
       nodeType: nginxphp
 success: |
-    Below you will find your admin panel link, username and password
-
-    Admin Panel URL: [${env.protocol}://${env.domain}/en/login](${env.protocol}://${env.domain}/en/login)
-    Admin name: admin
-    Password: ${globals.PASSWD}
+    **Below you will find your admin panel link, username and password.**
+    **Admin Panel URL:** [${env.protocol}://${env.domain}/en/login](${env.protocol}://${env.domain}/en/login)
+    **Admin name:** admin
+    **Password:** ${globals.PASSWD}
