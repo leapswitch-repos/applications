@@ -1,0 +1,75 @@
+jpsType: install
+jpsVersion: '1.0'
+id: bookstack
+name: Book Stack
+homepage: https://www.bookstackapp.com/
+logo: https://avatars1.githubusercontent.com/u/20912696?s=400&v=4
+categories:
+ - apps/dev-and-admin-tools
+nodes:
+ - cloudlets: 16
+   tag: 1.18.0-php-7.4.9
+   nodeGroup: cp
+   nodeType: nginxphp
+   extip: true
+   count: 1
+ - cloudlets: 8
+   nodeType: mariadb10
+   tag: 10.4.14
+   nodeGroup: sqldb
+   count: 1
+onInstall:
+  - deploy:
+      name: BookStack Release
+      context: ROOT
+      archive: https://github.com/BookStackApp/BookStack/archive/release.zip
+      nodeGroup: cp
+      nodeType: nginxphp
+  - prepareSqlDatabase:
+    - nodeType: mariadb10
+      loginCredentials:
+        user: root
+        password: ${nodes.sqldb.master.password}
+      newDatabaseName: bookstack
+  - replaceInFile:
+    - path: /var/www/webroot/ROOT/.env.example
+      nodeGroup: cp
+      nodeType: nginxphp
+      replacements:
+        - replacement: "DB_HOST=${nodes.sqldb.master.intIP}"
+          pattern: "DB_HOST=localhost"
+        - replacement: "DB_DATABASE=bookstack"
+          pattern: "DB_DATABASE=database_database"
+        - replacement: "DB_USERNAME=root"
+          pattern: "DB_USERNAME=database_username"
+        - replacement: "DB_PASSWORD=${nodes.sqldb.master.password}"
+          pattern: "DB_PASSWORD=database_user_password"
+    - path: /etc/nginx/nginx.conf
+      nodeGroup: cp
+      nodeType: nginxphp
+      replacements:
+        - replacement: "root /var/www/webroot/ROOT/public;\ntry_files $uri $uri/ /index.php?$query_string"
+          pattern: "root   /var/www/webroot/ROOT;"
+  - appendFile:
+    - path: /etc/php.ini
+      nodeType: nginxphp
+      nodeGroup: cp
+      body: "extension=mbstring.so\nextension=gd.so\nextension=simplexml.so\nextension=openssl.so\nextension=pdo_mysql.so\nextension=tidy.so\nextension=tokenizer.so"
+  - cmd[cp]:
+      curl -sS https://getcomposer.org/installer -o /tmp/composer-setup.php;
+      php /tmp/composer-setup.php --install-dir=/usr/local/bin --filename=composer;
+      cd /var/www/webroot/ROOT;
+      composer install --no-dev --optimize-autoloader --working-dir=/var/www/webroot/ROOT;
+      cp /var/www/webroot/ROOT/.env.example /var/www/webroot/ROOT/.env;
+      php /var/www/webroot/ROOT/artisan key:generate;
+      chmod 777 /var/www/webroot/ROOT/storage -R;
+      chmod 777 /var/www/webroot/ROOT/boostrap/cache -R;
+      cd /var/www/webroot/ROOT;
+      php artisan migrate;
+  - restartNode:
+      nodeType: nginxphp
+success: |
+    **Done! You can now login using the default admin details, you should change these details immediately after logging in for the first time.**
+    **Login Link:** [${env.protocol}://${env.domain}](${env.protocol}://${env.domain})
+    **Admin User:** admin@admin.com
+    **Admin Pass:** password
