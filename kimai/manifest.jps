@@ -14,11 +14,9 @@ globals:
 nodes:
  - cloudlets: 16
    nodeType: nginxphp
-   tag: 1.16.1-php-7.4.6
    nodeGroup: cp
- - cloudlets: 8
+ - cloudlets: 16
    nodeType: mariadb10
-   tag: 10.4.13
 onInstall:
   - deploy:
       name: Kimai-latest
