@@ -8,14 +8,12 @@ categories:
  - apps/dev-and-admin-tools
 nodes:
  - cloudlets: 16
-   tag: 1.18.0-php-7.4.9
    nodeGroup: cp
    nodeType: nginxphp
    extip: true
    count: 1
- - cloudlets: 8
+ - cloudlets: 16
    nodeType: mariadb10
-   tag: 10.4.14
    nodeGroup: sqldb
    count: 1
 onInstall:
